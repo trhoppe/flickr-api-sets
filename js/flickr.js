@@ -11,9 +11,19 @@ var flickrGallery = {
     /*==CONFIG================================================*/
 
     // Selector of default div to place HTML into
-    selector    :"#galleryHTML",
+    renderBox   :"#galleryHTML",
     // Flickr Set Id
     setId       :'',
+    // Flickr API Key
+    APIKey      :'36a6c3ca5158f79fe09ab61e95bd4901',
+    // Flickr Photo Set URL
+    FlickrAPIURL:'http://www.flickr.com/services/rest/?method=flickr.photosets.getPhotos&format=json&api_key={{APIKey}}&extras=url_o,url_q&photoset_id={{setId}}',
+    // the HTML templates to create the Gallery
+    HTMLtemplates   : {
+        thumbnails : '<ul data-contentid="content-{{id}}" class="thumbwrap">{{#photo}}<li><a class="imageLink" href="{{url_o}}" title=""><img src="{{url_q}}" width="100"></a></li>{{/photo}}</ul>',
+        flickrLink : '<p class="flickrLink"><a target="_blank" href="http://www.flickr.com/photos/trhoppe/sets/{{setId}}">View photos on Flickr instead</a></p>',
+        royalSliderCode : '<div style="display:none;"><div id="content-{{id}}" class="royalSlider rsDefault" style="width:100%; height:100%;">{{#photo}}<a class="rsImg" href="{{url_o}}"></a>{{/photo}}</div></div>'
+    },
 
     /*==FUNCTIONS================================================*/
 
@@ -31,7 +41,54 @@ var flickrGallery = {
         var self = this;
 
         $.extend(self, options);
+
+        if(self.setId === '') {
+            alert('Not a valid set Id');
+            return false;
+        }
+
+        // call the Flickr API
+        self._createURLAndCallAPI();
+
+    },
+
+    _createURLAndCallAPI: function() {
+
+        var self = this;
+
+        self.FlickrAPIURL = Mustache.render(self.FlickrAPIURL,{'APIKey':self.APIKey,'setId':self.setId});
+
+        $.ajax({
+            url: self.FlickrAPIURL,
+            dataType: "jsonp",
+            jsonp: 'jsoncallback'
+        })
+        .done(function(data) { 
+
+            if(data.photoset.photo.length === 0) {
+                alert('Your photo set has no photos :(');
+            }
+            else {
+                self._processAPIResponse(data); 
+            }
+
+        })
+        .fail(function() { alert("You either provided an invalid or non existent Flickr Set Id"); });
+    },
+
+    _processAPIResponse: function(data) {
+
+        var self = this,
+            html = '';
+
+        html += Mustache.render(self.HTMLtemplates.thumbnails,data.photoset);
+        html += Mustache.render(self.HTMLtemplates.flickrLink,{'setId':self.setId});
+        html += Mustache.render(self.HTMLtemplates.royalSliderCode,data.photoset);
+
+        $(self.renderBox).empty().text(html);
+
     }
+
 };
 
 $(function(){
